@@ -18,8 +18,8 @@
 </template>
 
 <script>
-import {defineComponent, render} from 'vue';
-import {removeElement} from './helpers.js';
+import { defineComponent, render } from 'vue';
+import { removeElement } from './helpers.js';
 import Timer from "./timer.js";
 import Positions from './positions.js'
 import eventBus from './bus.js'
@@ -39,7 +39,7 @@ export default defineComponent({
       type: String,
       default: Positions.BOTTOM_RIGHT,
       validator(value) {
-        return Object.values(Positions).includes(value)
+        return Object.values(Positions).includes(value);
       }
     },
     duration: {
@@ -52,19 +52,21 @@ export default defineComponent({
     },
     onDismiss: {
       type: Function,
-      default: () => {
-      }
+      default: () => {}
     },
     onClick: {
       type: Function,
-      default: () => {
-      }
+      default: () => {}
     },
     queue: Boolean,
     pauseOnHover: {
       type: Boolean,
       default: true
     },
+    ignoreDuplicate: {
+      type: Boolean,
+      default: true
+    }
   },
   data() {
     return {
@@ -72,20 +74,19 @@ export default defineComponent({
       parentTop: null,
       parentBottom: null,
       isHovered: false,
-    }
+    };
   },
   beforeMount() {
-    this.setupContainer()
+    this.setupContainer();
   },
   mounted() {
     this.showNotice();
-    eventBus.on('toast-clear', this.dismiss)
+    eventBus.on('toast-clear', this.dismiss);
   },
   methods: {
     setupContainer() {
       this.parentTop = document.querySelector('.v-toast.v-toast--top');
       this.parentBottom = document.querySelector('.v-toast.v-toast--bottom');
-      // No need to create them, they already exists
       if (this.parentTop && this.parentBottom) return;
 
       if (!this.parentTop) {
@@ -95,21 +96,26 @@ export default defineComponent({
 
       if (!this.parentBottom) {
         this.parentBottom = document.createElement('div');
-        this.parentBottom.className = 'v-toast v-toast--bottom'
+        this.parentBottom.className = 'v-toast v-toast--bottom';
       }
 
-      const container = document.body;
-      container.appendChild(this.parentTop);
-      container.appendChild(this.parentBottom);
+      document.body.appendChild(this.parentTop);
+      document.body.appendChild(this.parentBottom);
     },
 
     shouldQueue() {
       if (!this.queue) return false;
-
       return (
-        this.parentTop.childElementCount > 0 ||
-        this.parentBottom.childElementCount > 0
-      )
+          this.parentTop.childElementCount > 0 ||
+          this.parentBottom.childElementCount > 0
+      );
+    },
+
+    isDuplicate() {
+      if (!this.ignoreDuplicate) return false;
+      return Array.from(this.correctParent.children).some(
+          (el) => el.textContent.trim() === this.message.trim()
+      );
     },
 
     dismiss() {
@@ -117,24 +123,23 @@ export default defineComponent({
       clearTimeout(this.queueTimer);
       this.isActive = false;
 
-      // Timeout for the animation complete before destroying
       setTimeout(() => {
-        this.onDismiss.apply(null, arguments);
-
+        this.onDismiss();
         const wrapper = this.$refs.root;
-        // unmount the component
         render(null, wrapper);
-        removeElement(wrapper)
-      }, 150)
+        removeElement(wrapper);
+      }, 150);
     },
 
     showNotice() {
+      if (this.isDuplicate()) return; // Skip if duplicate is already visible
+
       if (this.shouldQueue()) {
-        // Call recursively if it should queue
         this.queueTimer = setTimeout(this.showNotice, 250);
-        return
+        return;
       }
-      const wrapper = this.$refs.root.parentElement
+
+      const wrapper = this.$refs.root.parentElement;
       this.correctParent.insertAdjacentElement('afterbegin', this.$refs.root);
       removeElement(wrapper);
 
@@ -147,8 +152,8 @@ export default defineComponent({
 
     whenClicked() {
       if (!this.dismissible) return;
-      this.onClick.apply(null, arguments);
-      this.dismiss()
+      this.onClick();
+      this.dismiss();
     },
 
     toggleTimer(newVal) {
@@ -163,7 +168,6 @@ export default defineComponent({
         case Positions.TOP_RIGHT:
         case Positions.TOP_LEFT:
           return this.parentTop;
-
         case Positions.BOTTOM:
         case Positions.BOTTOM_RIGHT:
         case Positions.BOTTOM_LEFT:
@@ -175,23 +179,16 @@ export default defineComponent({
         case Positions.TOP:
         case Positions.TOP_RIGHT:
         case Positions.TOP_LEFT:
-          return {
-            enter: 'v-toast--fade-in-down',
-            leave: 'v-toast--fade-out'
-          };
-
+          return { enter: 'v-toast--fade-in-down', leave: 'v-toast--fade-out' };
         case Positions.BOTTOM:
         case Positions.BOTTOM_RIGHT:
         case Positions.BOTTOM_LEFT:
-          return {
-            enter: 'v-toast--fade-in-up',
-            leave: 'v-toast--fade-out'
-          }
+          return { enter: 'v-toast--fade-in-up', leave: 'v-toast--fade-out' };
       }
-    },
+    }
   },
   beforeUnmount() {
-    eventBus.off('toast-clear', this.dismiss)
+    eventBus.off('toast-clear', this.dismiss);
   }
-})
+});
 </script>
